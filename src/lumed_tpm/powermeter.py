@@ -38,3 +38,46 @@ class powermeter:
         # self.dict_connected_devices = {'Thorlabs,PM100USB,1910986,1.7.0':'USB0::4883::32882::1910986::0::INSTR'}
         return self.dict_connected_devices
 
+    def connect_device(self, selected_idn):
+        """
+        Connects the selected device in the gui
+
+        Returns
+        -------
+        (bool, str), list
+            bool: True if device successfully connected, False otherwise. str: idn if connected, error message otherwise.
+        """
+        self.list_devices()
+        if selected_idn in self.dict_connected_devices:
+            try:
+                selected_addr = self.dict_connected_devices[selected_idn]
+                self.instr = self.rm.open_resource(selected_addr)
+                self.idn = selected_idn
+                self.connected = True
+                self.get_props()
+                return (True, self.idn)
+            except visa.VisaIOError:
+                return (False, "Error connecting device.")
+        else:
+            raise ValueError(
+                "The selected device is not valid device. Verify the device is properly connected."
+            )
+
+    def disconnect_device(self):
+        """
+        Disconnects the currently connected device
+
+        Returns
+        -------
+        (bool, str), list
+            bool: True if device successfully disconnected, False otherwise. str: success message if disconnected, error message otherwise.
+        """
+        if self.connected == True:
+            try:
+                self.instr.close()
+                self.connected = False
+                return (True, "Successfully disconnected device.")
+            except Exception as e:
+                return (False, e)
+        else:
+            raise ValueError("No device connected.")
