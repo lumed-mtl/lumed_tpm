@@ -26,17 +26,16 @@ class powermeter:
         dict_connected_devices, dict
             Dictionary of all found devices. Format: {idn1:address1, idn2:address2, ...}
         """
-        self.dict_connected_devices = {}
+        self.connected_devices = {}
         self.rm = visa.ResourceManager()
         for addr in self.rm.list_resources():
             try:
                 with self.rm.open_resource(addr) as instr:
                     idn = instr.query("*IDN?").rstrip("\n")
-                    self.dict_connected_devices[idn] = addr
+                    self.connected_devices[idn] = addr
             except visa.VisaIOError:
                 pass
-        # self.dict_connected_devices = {'Thorlabs,PM100USB,1910986,1.7.0':'USB0::4883::32882::1910986::0::INSTR'}
-        return self.dict_connected_devices
+        return self.connected_devices
 
     def connect_device(self, selected_idn):
         """
@@ -48,13 +47,12 @@ class powermeter:
             bool: True if device successfully connected, False otherwise. str: idn if connected, error message otherwise.
         """
         self.list_devices()
-        if selected_idn in self.dict_connected_devices:
+        if selected_idn in self.connected_devices:
             try:
-                selected_addr = self.dict_connected_devices[selected_idn]
+                selected_addr = self.connected_devices[selected_idn]
                 self.instr = self.rm.open_resource(selected_addr)
                 self.idn = selected_idn
                 self.connected = True
-                self.get_props()
                 return (True, self.idn)
             except visa.VisaIOError:
                 return (False, "Error connecting device.")
