@@ -53,9 +53,9 @@ class powermeter:
                 self.instr = self.rm.open_resource(selected_addr)
                 self.idn = selected_idn
                 self.connected = True
-                return (True, self.idn)
+                return True, self.idn
             except visa.VisaIOError:
-                return (False, "Error connecting device.")
+                return False, "Error connecting device."
         else:
             raise ValueError(
                 "The selected device is not valid device. Verify the device is properly connected."
@@ -74,8 +74,38 @@ class powermeter:
             try:
                 self.instr.close()
                 self.connected = False
-                return (True, "Successfully disconnected device.")
+                return True, "Successfully disconnected device."
             except Exception as e:
-                return (False, e)
+                return False, e
         else:
             raise ValueError("No device connected.")
+
+    @property
+    def power(self):
+        if self.connected:
+            if self._power_units == None:
+                self._power_units = "W"  # sets the default units to Watts
+            self.instr.write("power:dc:unit " + self._power_units.upper())
+            self._power = float(self.instr.query("measure:power?"))
+            return self._power, self._power_units
+        else:
+            self._power, self._power_units = None, None
+            raise RuntimeError("No device connected.")
+
+    @property
+    def power_units(self):
+        if self.connected:
+            return self._power_units
+        else:
+            self._power, self._power_units = None, None
+            raise RuntimeError("No device connected.")
+
+    @power_units.setter
+    def power_units(self, units):
+        if self.connected:
+            self._power_units = units
+            self.instr.write("power:dc:unit " + self._power_units.upper())
+            return self._power_units
+        else:
+            self._power, self._power_units = None, None
+            raise RuntimeError("No device connected.")
