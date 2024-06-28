@@ -1,4 +1,60 @@
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
+from PyQt5.QtWidgets import QMainWindow, QPushButton, QLabel, QVBoxLayout, QWidget
+from PyQt5.QtCore import QRunnable, QObject, QThread, pyqtSlot, QThreadPool, pyqtSignal
+
+from powermeter import Powermeter
+
+
+class WorkerSignals(QObject):
+    """
+    Defines the signals available from a running worker thread.
+
+    Supported signals are:
+
+    finished
+        No data
+
+    error
+        `str` Exception string
+
+    result
+        `tuple` data returned from processing
+
+    update
+        `object` data for inter-thread communication
+
+    """
+
+    finished = pyqtSignal()
+    error = pyqtSignal(str)
+    result = pyqtSignal(tuple)
+    update = pyqtSignal(object)
+
+
+class Worker(QRunnable):
+    def __init__(self, func=None, *args, **kwargs):
+        super().__init__()
+        self.signals = WorkerSignals()
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+        self.is_killed = False
+
+    @pyqtSlot()
+    def run(self):
+        try:
+            if self.func:
+                result = self.func(*self.args, **self.kwargs)
+            else:
+                result = None, ""
+        except Exception as e:
+            self.signals.error.emit(str(e))
+        else:
+            self.signals.finished.emit()
+            self.signals.result.emit(result)
+
+    def kill(self):
+        self.is_killed = True
 
 
 class Ui_MainWindow(object):
@@ -124,7 +180,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "Lumed TPM"))
         self.refreshRateLabel.setText(_translate("MainWindow", "Refresh Rate (s)"))
         self.powerLabel.setText(_translate("MainWindow", "Power"))
         self.powerUnitsComboBox.setItemText(0, _translate("MainWindow", "W"))
