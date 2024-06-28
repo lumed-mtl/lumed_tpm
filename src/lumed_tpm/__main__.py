@@ -110,6 +110,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
         self.connectButton = QtWidgets.QPushButton(self.centralwidget)
         self.connectButton.setObjectName("connectButton")
+        self.connectButton.setEnabled(True)
         self.horizontalLayout_2.addWidget(self.connectButton)
         self.refreshButton = QtWidgets.QPushButton(self.centralwidget)
         self.refreshButton.setObjectName("refreshButton")
@@ -123,6 +124,7 @@ class Ui_MainWindow(object):
         self.gridLayout.addWidget(self.deviceComboBox, 0, 1, 1, 1)
         self.disconnectButton = QtWidgets.QPushButton(self.centralwidget)
         self.disconnectButton.setObjectName("disconnectButton")
+        self.disconnectButton.setEnabled(True)
         self.gridLayout.addWidget(self.disconnectButton, 0, 2, 1, 1)
         self.startAvgPushButton = QtWidgets.QPushButton(self.centralwidget)
         self.startAvgPushButton.setObjectName("startAvgPushButton")
@@ -178,6 +180,15 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
+        self.pm = Powermeter()
+
+        self.connectButton.clicked.connect(self.connect_button_clicked)
+        self.disconnectButton.clicked.connect(self.disconnect_button_clicked)
+        self.refreshButton.clicked.connect(self.refresh_button_clicked)
+
+        self.threadpool = QThreadPool()
+        print(f"Multithreading with maximum {self.threadpool.maxThreadCount()} threads")
+
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "Lumed TPM"))
@@ -196,6 +207,29 @@ class Ui_MainWindow(object):
         self.avgPowerUnitsComboBox.setItemText(0, _translate("MainWindow", "W"))
         self.avgPowerUnitsComboBox.setItemText(1, _translate("MainWindow", "dBm"))
         self.avgPowerNLabel.setText(_translate("MainWindow", "N"))
+
+    def connect_button_clicked(self):
+        self.worker = Worker(self.pm.connect_device, self.deviceComboBox.currentText())
+
+        self.worker.signals.result.connect(lambda result: print(result))
+        self.worker.signals.finished.connect(
+            lambda: self.enable_disable_button(self.connectButton)
+        )
+        self.worker.signals.error.connect(
+            lambda e: (print(e), self.enable_disable_button(self.connectButton))[-1]
+        )  # print error message and enable button
+        self.connectButton.setEnabled(False)
+        self.threadpool.start(self.worker)
+
+    def disconnect_button_clicked(self):
+        result = self.pm.disconnect_device()
+
+    def refresh_button_clicked(self):
+        devices = self.pm.list_devices()
+        self.deviceComboBox.addItems(list(devices.keys()))
+
+    def enable_disable_button(self, button):
+        button.setEnabled(not button.isEnabled())
 
 
 if __name__ == "__main__":
