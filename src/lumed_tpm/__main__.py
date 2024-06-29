@@ -27,7 +27,7 @@ class WorkerSignals(QObject):
 
     finished = pyqtSignal()
     error = pyqtSignal(str)
-    result = pyqtSignal(tuple)
+    result = pyqtSignal(object)
     update = pyqtSignal(object)
 
 
@@ -222,11 +222,32 @@ class Ui_MainWindow(object):
         self.threadpool.start(self.worker)
 
     def disconnect_button_clicked(self):
-        result = self.pm.disconnect_device()
+        self.worker = Worker(self.pm.disconnect_device)
+
+        self.worker.signals.result.connect(lambda result: print(result))
+        self.worker.signals.finished.connect(
+            lambda: self.enable_disable_button(self.disconnectButton)
+        )
+        self.worker.signals.error.connect(
+            lambda e: (print(e), self.enable_disable_button(self.disconnectButton))[-1]
+        )  # print error message and enable button
+        self.disconnectButton.setEnabled(False)
+        self.threadpool.start(self.worker)
 
     def refresh_button_clicked(self):
-        devices = self.pm.list_devices()
-        self.deviceComboBox.addItems(list(devices.keys()))
+        #devices = self.pm.list_devices()
+        
+        self.worker = Worker(self.pm.list_devices)
+
+        self.worker.signals.result.connect(lambda result: self.deviceComboBox.addItems(list(result.keys())))
+        self.worker.signals.finished.connect(
+            lambda: self.enable_disable_button(self.refreshButton)
+        )
+        self.worker.signals.error.connect(
+            lambda e: (print(e), self.enable_disable_button(self.refreshButton))[-1]
+        )  # print error message and enable button
+        self.refreshButton.setEnabled(False)
+        self.threadpool.start(self.worker)
 
     def enable_disable_button(self, button):
         button.setEnabled(not button.isEnabled())
