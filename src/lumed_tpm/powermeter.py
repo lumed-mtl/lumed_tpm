@@ -58,7 +58,7 @@ class Powermeter:
                 return False, "Error connecting device."
         else:
             raise ValueError(
-                "The selected device is not valid device. Verify the device is properly connected."
+                "The selected device is not a valid device. Verify the device is properly connected."
             )
 
     def disconnect_device(self):
@@ -109,23 +109,3 @@ class Powermeter:
         else:
             self._power, self._power_units = None, None
             raise RuntimeError("No device connected.")
-
-
-if __name__ == "__main__":
-    # rm = visa.ResourceManager('@py')
-    # resources = rm.list_resources()
-    # print(resources)
-
-
-    newObj = Powermeter()
-    newObj.connect_device("Thorlabs,PM100USB,1910986,1.7.0")
-    
-    newObj.disconnect_device()
-
-    # with rm.open_resource(resources[0]) as instr:
-    # print(instr.query('*IDN?'))
-    # print (instr.query("MEAS:POW?"))
-    # print(instr.query("SYST:SENS:IDN?"))
-
-    # instr.write("MEAS:POW?")
-    # print(instr.read())

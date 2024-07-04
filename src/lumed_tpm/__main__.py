@@ -1,6 +1,14 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QPushButton, QLabel, QVBoxLayout, QWidget
-from PyQt5.QtCore import QRunnable, QObject, QThread, pyqtSlot, QThreadPool, pyqtSignal
+from PyQt5.QtCore import (
+    QRunnable,
+    QObject,
+    QThread,
+    pyqtSlot,
+    QThreadPool,
+    pyqtSignal,
+    Qt,
+)
 
 from powermeter import Powermeter
 
@@ -18,17 +26,17 @@ class WorkerSignals(QObject):
         `str` Exception string
 
     result
-        `tuple` data returned from processing
+        `tuple` Data returned when processing is finished
 
-    update
-        `object` data for inter-thread communication
+    progress
+        `object` Data returned while processing
 
     """
 
     finished = pyqtSignal()
     error = pyqtSignal(str)
     result = pyqtSignal(object)
-    update = pyqtSignal(object)
+    progress = pyqtSignal(object)
 
 
 class Worker(QRunnable):
@@ -38,7 +46,6 @@ class Worker(QRunnable):
         self.func = func
         self.args = args
         self.kwargs = kwargs
-        self.is_killed = False
 
     @pyqtSlot()
     def run(self):
@@ -52,9 +59,6 @@ class Worker(QRunnable):
         else:
             self.signals.finished.emit()
             self.signals.result.emit(result)
-
-    def kill(self):
-        self.is_killed = True
 
 
 class Ui_MainWindow(object):
@@ -98,6 +102,8 @@ class Ui_MainWindow(object):
         self.powerTextEdit.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.powerTextEdit.setReadOnly(True)
         self.powerTextEdit.setObjectName("powerTextEdit")
+        self.powerTextEdit.viewport().setCursor(Qt.ArrowCursor)
+        self.powerTextEdit.setFocusPolicy(Qt.NoFocus)
         self.horizontalLayout_4.addWidget(self.powerTextEdit)
         self.powerUnitsComboBox = QtWidgets.QComboBox(self.centralwidget)
         self.powerUnitsComboBox.setMaximumSize(QtCore.QSize(16777215, 23))
@@ -142,6 +148,8 @@ class Ui_MainWindow(object):
         self.avgPowerTextEdit.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.avgPowerTextEdit.setReadOnly(True)
         self.avgPowerTextEdit.setObjectName("avgPowerTextEdit")
+        self.avgPowerTextEdit.viewport().setCursor(Qt.ArrowCursor)
+        self.avgPowerTextEdit.setFocusPolicy(Qt.NoFocus)
         self.horizontalLayout_6.addWidget(self.avgPowerTextEdit)
         self.avgPowerUnitsComboBox = QtWidgets.QComboBox(self.centralwidget)
         self.avgPowerUnitsComboBox.setMaximumSize(QtCore.QSize(16777215, 23))
@@ -165,6 +173,8 @@ class Ui_MainWindow(object):
         )
         self.avgPowerNTextEdit.setReadOnly(True)
         self.avgPowerNTextEdit.setObjectName("avgPowerNTextEdit")
+        self.avgPowerNTextEdit.viewport().setCursor(Qt.ArrowCursor)
+        self.avgPowerNTextEdit.setFocusPolicy(Qt.NoFocus)
         self.horizontalLayout_7.addWidget(self.avgPowerNTextEdit)
         self.gridLayout.addLayout(self.horizontalLayout_7, 2, 2, 1, 1)
         self.gridLayout_2.addLayout(self.gridLayout, 0, 0, 1, 1)
@@ -209,48 +219,55 @@ class Ui_MainWindow(object):
         self.avgPowerNLabel.setText(_translate("MainWindow", "N"))
 
     def connect_button_clicked(self):
-        self.worker = Worker(self.pm.connect_device, self.deviceComboBox.currentText())
+        self.connect_worker = Worker(
+            self.pm.connect_device, self.deviceComboBox.currentText()
+        )
 
-        self.worker.signals.result.connect(lambda result: print(result))
-        self.worker.signals.finished.connect(
+        self.connect_worker.signals.result.connect(
+            lambda result: self.measure_power() if result[0] else print(result[1])
+        )  # if successfully connected, measure power, else print the error message
+        self.connect_worker.signals.finished.connect(
             lambda: self.enable_disable_button(self.connectButton)
         )
-        self.worker.signals.error.connect(
+        self.connect_worker.signals.error.connect(
             lambda e: (print(e), self.enable_disable_button(self.connectButton))[-1]
         )  # print error message and enable button
         self.connectButton.setEnabled(False)
-        self.threadpool.start(self.worker)
+        self.threadpool.start(self.connect_worker)
 
     def disconnect_button_clicked(self):
-        self.worker = Worker(self.pm.disconnect_device)
+        self.disconnect_worker = Worker(self.pm.disconnect_device)
 
-        self.worker.signals.result.connect(lambda result: print(result))
-        self.worker.signals.finished.connect(
+        self.disconnect_worker.signals.result.connect(lambda result: print(result[1]))
+        self.disconnect_worker.signals.finished.connect(
             lambda: self.enable_disable_button(self.disconnectButton)
         )
-        self.worker.signals.error.connect(
+        self.disconnect_worker.signals.error.connect(
             lambda e: (print(e), self.enable_disable_button(self.disconnectButton))[-1]
         )  # print error message and enable button
         self.disconnectButton.setEnabled(False)
-        self.threadpool.start(self.worker)
+        self.threadpool.start(self.disconnect_worker)
 
     def refresh_button_clicked(self):
-        #devices = self.pm.list_devices()
-        
-        self.worker = Worker(self.pm.list_devices)
+        self.refresh_worker = Worker(self.pm.list_devices)
 
-        self.worker.signals.result.connect(lambda result: self.deviceComboBox.addItems(list(result.keys())))
-        self.worker.signals.finished.connect(
+        self.refresh_worker.signals.result.connect(
+            lambda result: self.deviceComboBox.addItems(list(result.keys()))
+        )
+        self.refresh_worker.signals.finished.connect(
             lambda: self.enable_disable_button(self.refreshButton)
         )
-        self.worker.signals.error.connect(
+        self.refresh_worker.signals.error.connect(
             lambda e: (print(e), self.enable_disable_button(self.refreshButton))[-1]
         )  # print error message and enable button
         self.refreshButton.setEnabled(False)
-        self.threadpool.start(self.worker)
+        self.threadpool.start(self.refresh_worker)
 
-    def enable_disable_button(self, button):
+    def enable_disable_button(self, button: QPushButton):
         button.setEnabled(not button.isEnabled())
+
+    def measure_power(self):
+        pass
 
 
 if __name__ == "__main__":
