@@ -270,7 +270,7 @@ class Ui_MainWindow(object):
         self.refresh_worker = Worker(self.pm.list_devices)
 
         self.refresh_worker.signals.result.connect(
-            lambda result: self.deviceComboBox.addItems(list(result.keys()))
+            lambda result: self.update_devices_combobox(result)
         )
         self.refresh_worker.signals.finished.connect(
             lambda: self.enable_disable_button(self.refreshButton)
@@ -300,6 +300,10 @@ class Ui_MainWindow(object):
 
     def change_power_units(self):
         self.pm.power_units = self.powerUnitsComboBox.currentText()
+    
+    def update_devices_combobox(self, result: dict):
+        self.deviceComboBox.clear()
+        self.deviceComboBox.addItems(list(result.keys()))
 
 if __name__ == "__main__":
     import sys
