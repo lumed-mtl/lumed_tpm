@@ -12,6 +12,23 @@ from PyQt5.QtCore import (
 
 from powermeter import Powermeter
 
+class MeasurePowerWorker(QRunnable):
+    def __init__(self, pm: Powermeter):
+        super().__init__()
+        self.signals = WorkerSignals()
+        self.pm = pm
+    
+    @pyqtSlot()
+    def run(self):
+        try:
+            while self.pm.connected:
+                power = f"{self.pm.power[0]} {self.pm.power[1]}"
+                self.signals.progress.emit(power)
+                QThread.msleep(500) # Refresh rate
+        except Exception as e:
+            self.signals.error.emit(str(e))
+        else:
+            self.signals.finished.emit()
 
 class WorkerSignals(QObject):
     """
@@ -267,7 +284,18 @@ class Ui_MainWindow(object):
         button.setEnabled(not button.isEnabled())
 
     def measure_power(self):
-        pass
+        self.measure_power_worker = MeasurePowerWorker(self.pm)
+
+        self.measure_power_worker.signals.progress.connect(
+            lambda power: self.powerTextEdit.setPlainText(power)
+        )
+        self.measure_power_worker.signals.finished.connect(
+            lambda: self.powerTextEdit.setPlainText("")
+        )
+        self.measure_power_worker.signals.error.connect(
+            lambda e: (print(e), self.powerTextEdit.setPlainText(""))[-1]
+        )  # print error message and clear power text edit
+        self.threadpool.start(self.measure_power_worker)
 
 
 if __name__ == "__main__":
