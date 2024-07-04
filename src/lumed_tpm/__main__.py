@@ -212,6 +212,7 @@ class Ui_MainWindow(object):
         self.connectButton.clicked.connect(self.connect_button_clicked)
         self.disconnectButton.clicked.connect(self.disconnect_button_clicked)
         self.refreshButton.clicked.connect(self.refresh_button_clicked)
+        self.powerUnitsComboBox.currentIndexChanged.connect(self.change_power_units)
 
         self.threadpool = QThreadPool()
         print(f"Multithreading with maximum {self.threadpool.maxThreadCount()} threads")
@@ -297,6 +298,8 @@ class Ui_MainWindow(object):
         )  # print error message and clear power text edit
         self.threadpool.start(self.measure_power_worker)
 
+    def change_power_units(self):
+        self.pm.power_units = self.powerUnitsComboBox.currentText()
 
 if __name__ == "__main__":
     import sys
