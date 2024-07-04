@@ -12,23 +12,25 @@ from PyQt5.QtCore import (
 
 from powermeter import Powermeter
 
+
 class MeasurePowerWorker(QRunnable):
     def __init__(self, pm: Powermeter):
         super().__init__()
         self.signals = WorkerSignals()
         self.pm = pm
-    
+
     @pyqtSlot()
     def run(self):
         try:
             while self.pm.connected:
                 power = f"{self.pm.power[0]} {self.pm.power[1]}"
                 self.signals.progress.emit(power)
-                QThread.msleep(500) # Refresh rate
+                QThread.msleep(500)  # Refresh rate
         except Exception as e:
             self.signals.error.emit(str(e))
         else:
             self.signals.finished.emit()
+
 
 class WorkerSignals(QObject):
     """
@@ -242,8 +244,8 @@ class Ui_MainWindow(object):
         )
 
         self.connect_worker.signals.result.connect(
-            lambda result: self.measure_power() if result[0] else print(result[1])
-        )  # if successfully connected, measure power, else print the error message
+            lambda result: self.connect_button_clicked_result(result)
+        )
         self.connect_worker.signals.finished.connect(
             lambda: self.enable_disable_button(self.connectButton)
         )
@@ -253,10 +255,24 @@ class Ui_MainWindow(object):
         self.connectButton.setEnabled(False)
         self.threadpool.start(self.connect_worker)
 
+    def connect_button_clicked_result(self, result):
+        if result[0] == True:
+            # if successfully connected, measure power & disable refresh button
+            self.measure_power()
+            self.enable_disable_button(self.refreshButton)
+        else:
+            # if connection failed, print message
+            print(result[1])
+
     def disconnect_button_clicked(self):
         self.disconnect_worker = Worker(self.pm.disconnect_device)
 
-        self.disconnect_worker.signals.result.connect(lambda result: print(result[1]))
+        self.disconnect_worker.signals.result.connect(
+            lambda result: (
+                print(result[1]),
+                self.enable_disable_button(self.refreshButton),
+            )[-1]
+        )  # if successfully disconected device, print message and enable refresh button
         self.disconnect_worker.signals.finished.connect(
             lambda: self.enable_disable_button(self.disconnectButton)
         )
@@ -300,10 +316,11 @@ class Ui_MainWindow(object):
 
     def change_power_units(self):
         self.pm.power_units = self.powerUnitsComboBox.currentText()
-    
+
     def update_devices_combobox(self, result: dict):
         self.deviceComboBox.clear()
         self.deviceComboBox.addItems(list(result.keys()))
+
 
 if __name__ == "__main__":
     import sys
