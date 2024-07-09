@@ -9,27 +9,10 @@ from PyQt5.QtCore import (
     pyqtSignal,
     Qt,
 )
+import pyqtgraph as pg
 
 from powermeter import Powermeter
-
-
-class MeasurePowerWorker(QRunnable):
-    def __init__(self, pm: Powermeter):
-        super().__init__()
-        self.signals = WorkerSignals()
-        self.pm = pm
-
-    @pyqtSlot()
-    def run(self):
-        try:
-            while self.pm.connected:
-                power = f"{self.pm.power[0]} {self.pm.power[1]}"
-                self.signals.progress.emit(power)
-                QThread.msleep(500)  # Refresh rate
-        except Exception as e:
-            self.signals.error.emit(str(e))
-        else:
-            self.signals.finished.emit()
+from plots import PlotWindow
 
 
 class WorkerSignals(QObject):
@@ -55,7 +38,26 @@ class WorkerSignals(QObject):
     finished = pyqtSignal()
     error = pyqtSignal(str)
     result = pyqtSignal(object)
-    progress = pyqtSignal(object)
+    progress = pyqtSignal(object, object)
+
+
+class MeasurePowerWorker(QRunnable):
+    def __init__(self, pm: Powermeter):
+        super().__init__()
+        self.signals = WorkerSignals()
+        self.pm = pm
+
+    @pyqtSlot()
+    def run(self):
+        try:
+            while self.pm.connected:
+                power, power_units = self.pm.power
+                self.signals.progress.emit(power, power_units)
+                QThread.msleep(500)  # Refresh rate
+        except Exception as e:
+            self.signals.error.emit(str(e))
+        else:
+            self.signals.finished.emit()
 
 
 class Worker(QRunnable):
@@ -129,6 +131,7 @@ class Ui_MainWindow(object):
         self.powerUnitsComboBox.setObjectName("powerUnitsComboBox")
         self.powerUnitsComboBox.addItem("")
         self.powerUnitsComboBox.addItem("")
+        self.powerUnitsComboBox.setEnabled(False)
         self.horizontalLayout_4.addWidget(self.powerUnitsComboBox)
         self.gridLayout.addLayout(self.horizontalLayout_4, 1, 1, 1, 1)
         self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
@@ -214,10 +217,13 @@ class Ui_MainWindow(object):
         self.connectButton.clicked.connect(self.connect_button_clicked)
         self.disconnectButton.clicked.connect(self.disconnect_button_clicked)
         self.refreshButton.clicked.connect(self.refresh_button_clicked)
+        self.showGraphPushButton.clicked.connect(self.show_graph_button_clicked)
         self.powerUnitsComboBox.currentIndexChanged.connect(self.change_power_units)
 
         self.threadpool = QThreadPool()
         print(f"Multithreading with maximum {self.threadpool.maxThreadCount()} threads")
+
+        self.plotwindow = None
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -244,8 +250,10 @@ class Ui_MainWindow(object):
         )
 
         self.connect_worker.signals.result.connect(
-            lambda result: self.connect_button_clicked_result(result)
-        )
+            lambda result: (
+                self.on_connect_disconnect() if result[0] == True else print(result[1])
+            )
+        )  # if successfully connected, run function, else print message
         self.connect_worker.signals.finished.connect(
             lambda: self.enable_disable_button(self.connectButton)
         )
@@ -255,24 +263,25 @@ class Ui_MainWindow(object):
         self.connectButton.setEnabled(False)
         self.threadpool.start(self.connect_worker)
 
-    def connect_button_clicked_result(self, result):
-        if result[0] == True:
-            # if successfully connected, measure power & disable refresh button
-            self.measure_power()
+    def on_connect_disconnect(self):
+        if self.pm.connected:
+            # if successfully connected: measure power & enable/disable buttons
             self.enable_disable_button(self.refreshButton)
+            self.enable_disable_button(self.powerUnitsComboBox)
+            self.measure_power()
         else:
-            # if connection failed, print message
-            print(result[1])
+            # if successfully disconected device, enable refresh button
+            self.enable_disable_button(self.refreshButton)
+            self.enable_disable_button(self.powerUnitsComboBox)
 
     def disconnect_button_clicked(self):
         self.disconnect_worker = Worker(self.pm.disconnect_device)
 
         self.disconnect_worker.signals.result.connect(
             lambda result: (
-                print(result[1]),
-                self.enable_disable_button(self.refreshButton),
-            )[-1]
-        )  # if successfully disconected device, print message and enable refresh button
+                self.on_connect_disconnect() if result[0] == True else print(result[1])
+            )
+        )  # if successfully disconected device, print message & enable/disable buttons
         self.disconnect_worker.signals.finished.connect(
             lambda: self.enable_disable_button(self.disconnectButton)
         )
@@ -304,7 +313,7 @@ class Ui_MainWindow(object):
         self.measure_power_worker = MeasurePowerWorker(self.pm)
 
         self.measure_power_worker.signals.progress.connect(
-            lambda power: self.powerTextEdit.setPlainText(power)
+            lambda power, units: self.on_power_measurement(power, units)
         )
         self.measure_power_worker.signals.finished.connect(
             lambda: self.powerTextEdit.setPlainText("")
@@ -314,12 +323,43 @@ class Ui_MainWindow(object):
         )  # print error message and clear power text edit
         self.threadpool.start(self.measure_power_worker)
 
+    def on_power_measurement(self, power, units):
+        # update power combobox & plot data
+        self.powerTextEdit.setPlainText(f"{power} {units}")
+        if self.plotwindow is not None:
+            self.plotwindow.plotdata.append(power)
+            self.plotwindow.plotwidget.plot(self.plotwindow.plotdata)
+
     def change_power_units(self):
+        # update combobox & plot if created
         self.pm.power_units = self.powerUnitsComboBox.currentText()
+        if self.plotwindow.isVisible():
+            self.plotwindow = PlotWindow()
+            self.plotwindow.plotwidget.getPlotItem().setLabel(
+                "left", f"Power {self.pm.power_units}"
+            )
+            self.plotwindow.plotwidget.getPlotItem().setLabel("bottom", "X Axis")
+            self.plotwindow.show()
 
     def update_devices_combobox(self, result: dict):
         self.deviceComboBox.clear()
         self.deviceComboBox.addItems(list(result.keys()))
+
+    def show_graph_button_clicked(self):
+        if self.plotwindow is None or self.plotwindow.isVisible() is False:
+            # create plot if it doesn't exist or window was closed
+            self.plotwindow = PlotWindow()
+            self.plotwindow.plotwidget.getPlotItem().setLabel(
+                "left", f"Power {self.pm.power_units}"
+            )
+            self.plotwindow.plotwidget.getPlotItem().setLabel("bottom", "X Axis")
+            self.plotwindow.show()
+            print("one")
+        elif self.plotwindow.isVisible():
+            # hide plot and wipe out its data
+            self.plotwindow.hide()
+            self.plotwindow = None
+            print("two")
 
 
 if __name__ == "__main__":
