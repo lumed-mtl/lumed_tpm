@@ -146,6 +146,7 @@ class Ui_MainWindow(object):
         self.gridLayout.addLayout(self.horizontalLayout_2, 0, 0, 1, 1)
         self.showGraphPushButton = QtWidgets.QPushButton(self.centralwidget)
         self.showGraphPushButton.setObjectName("showGraphPushButton")
+        self.showGraphPushButton.setEnabled(False)
         self.gridLayout.addWidget(self.showGraphPushButton, 1, 2, 1, 1)
         self.deviceComboBox = QtWidgets.QComboBox(self.centralwidget)
         self.deviceComboBox.setObjectName("deviceComboBox")
@@ -268,11 +269,13 @@ class Ui_MainWindow(object):
             # if successfully connected: measure power & enable/disable buttons
             self.enable_disable_button(self.refreshButton)
             self.enable_disable_button(self.powerUnitsComboBox)
+            self.enable_disable_button(self.showGraphPushButton)
             self.measure_power()
         else:
             # if successfully disconected device, enable refresh button
             self.enable_disable_button(self.refreshButton)
             self.enable_disable_button(self.powerUnitsComboBox)
+            self.enable_disable_button(self.showGraphPushButton)
 
     def disconnect_button_clicked(self):
         self.disconnect_worker = Worker(self.pm.disconnect_device)
@@ -333,7 +336,7 @@ class Ui_MainWindow(object):
     def change_power_units(self):
         # update combobox & plot if created
         self.pm.power_units = self.powerUnitsComboBox.currentText()
-        if self.plotwindow.isVisible():
+        if self.plotwindow is not None and self.plotwindow.isVisible():
             self.plotwindow = PlotWindow()
             self.plotwindow.plotwidget.getPlotItem().setLabel(
                 "left", f"Power {self.pm.power_units}"
@@ -354,12 +357,10 @@ class Ui_MainWindow(object):
             )
             self.plotwindow.plotwidget.getPlotItem().setLabel("bottom", "X Axis")
             self.plotwindow.show()
-            print("one")
         elif self.plotwindow.isVisible():
             # hide plot and wipe out its data
             self.plotwindow.hide()
             self.plotwindow = None
-            print("two")
 
 
 if __name__ == "__main__":
