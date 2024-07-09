@@ -329,7 +329,7 @@ class Ui_MainWindow(object):
     def on_power_measurement(self, power, units):
         # update power combobox & plot data
         self.powerTextEdit.setPlainText(f"{power} {units}")
-        if self.plotwindow is not None:
+        if self.plotwindow is not None and self.plotwindow.isVisible():
             self.plotwindow.plotdata.append(power)
             self.plotwindow.plotwidget.plot(self.plotwindow.plotdata)
 
