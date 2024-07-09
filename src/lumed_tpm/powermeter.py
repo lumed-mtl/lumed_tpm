@@ -16,6 +16,7 @@ class Powermeter:
         self._max_power_range = None
         self.min_wavelength = None
         self.max_wavelength = None
+        self.measuring = None
 
     def list_devices(self):
         """
@@ -53,6 +54,7 @@ class Powermeter:
                 self.instr = self.rm.open_resource(selected_addr)
                 self.idn = selected_idn
                 self.connected = True
+                self.measuring = False
                 return True, self.idn
             except visa.VisaIOError:
                 return False, "Error connecting device."

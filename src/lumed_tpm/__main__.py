@@ -50,7 +50,7 @@ class MeasurePowerWorker(QRunnable):
     @pyqtSlot()
     def run(self):
         try:
-            while self.pm.connected:
+            while self.pm.measuring:
                 power, power_units = self.pm.power
                 self.signals.progress.emit(power, power_units)
                 QThread.msleep(500)  # Refresh rate
@@ -94,21 +94,16 @@ class Ui_MainWindow(object):
         self.gridLayout.setObjectName("gridLayout")
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_3.setObjectName("horizontalLayout_3")
-        self.refreshRateLabel = QtWidgets.QLabel(self.centralwidget)
-        self.refreshRateLabel.setMaximumSize(QtCore.QSize(16777215, 23))
-        self.refreshRateLabel.setObjectName("refreshRateLabel")
-        self.horizontalLayout_3.addWidget(self.refreshRateLabel)
-        self.refreshRateTextEdit = QtWidgets.QPlainTextEdit(self.centralwidget)
-        self.refreshRateTextEdit.setMinimumSize(QtCore.QSize(0, 23))
-        self.refreshRateTextEdit.setMaximumSize(QtCore.QSize(16777215, 23))
-        self.refreshRateTextEdit.setVerticalScrollBarPolicy(
-            QtCore.Qt.ScrollBarAlwaysOff
-        )
-        self.refreshRateTextEdit.setHorizontalScrollBarPolicy(
-            QtCore.Qt.ScrollBarAlwaysOff
-        )
-        self.refreshRateTextEdit.setObjectName("refreshRateTextEdit")
-        self.horizontalLayout_3.addWidget(self.refreshRateTextEdit)
+        self.measureOncePushButton = QtWidgets.QPushButton(self.centralwidget)
+        self.measureOncePushButton.setObjectName("measureOncePushButton")
+        self.measureOncePushButton.setEnabled(False)
+        self.horizontalLayout_3.addWidget(self.measureOncePushButton)
+        self.measureContinuousPushButton = QtWidgets.QPushButton(self.centralwidget)
+        self.measureContinuousPushButton.setObjectName("measureContinuousPushButton")
+        self.measureContinuousPushButton.setEnabled(False)
+        self.horizontalLayout_3.addWidget(self.measureContinuousPushButton)
+        self.horizontalLayout_3.setStretch(0, 2)
+        self.horizontalLayout_3.setStretch(1, 1)
         self.gridLayout.addLayout(self.horizontalLayout_3, 1, 0, 1, 1)
         self.horizontalLayout_4 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_4.setObjectName("horizontalLayout_4")
@@ -220,6 +215,8 @@ class Ui_MainWindow(object):
         self.refreshButton.clicked.connect(self.refresh_button_clicked)
         self.showGraphPushButton.clicked.connect(self.show_graph_button_clicked)
         self.powerUnitsComboBox.currentIndexChanged.connect(self.change_power_units)
+        self.measureOncePushButton.clicked.connect(self.measure_once_button_clicked)
+        self.measureContinuousPushButton.clicked.connect(self.measure_button_clicked)
 
         self.threadpool = QThreadPool()
         print(f"Multithreading with maximum {self.threadpool.maxThreadCount()} threads")
@@ -229,7 +226,8 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "Lumed TPM"))
-        self.refreshRateLabel.setText(_translate("MainWindow", "Refresh Rate (s)"))
+        self.measureOncePushButton.setText(_translate("MainWindow", "Measure x1"))
+        self.measureContinuousPushButton.setText(_translate("MainWindow", "Measure"))
         self.powerLabel.setText(_translate("MainWindow", "Power"))
         self.powerUnitsComboBox.setItemText(0, _translate("MainWindow", "W"))
         self.powerUnitsComboBox.setItemText(1, _translate("MainWindow", "dBm"))
@@ -266,16 +264,19 @@ class Ui_MainWindow(object):
 
     def on_connect_disconnect(self):
         if self.pm.connected:
-            # if successfully connected: measure power & enable/disable buttons
-            self.enable_disable_button(self.refreshButton)
-            self.enable_disable_button(self.powerUnitsComboBox)
-            self.enable_disable_button(self.showGraphPushButton)
-            self.measure_power()
+            # successfully connected device
+            self.refreshButton.setEnabled(False)
+            self.powerUnitsComboBox.setEnabled(True)
+            self.showGraphPushButton.setEnabled(True)
+            self.measureOncePushButton.setEnabled(True)
+            self.measureContinuousPushButton.setEnabled(True)
         else:
-            # if successfully disconected device, enable refresh button
-            self.enable_disable_button(self.refreshButton)
-            self.enable_disable_button(self.powerUnitsComboBox)
-            self.enable_disable_button(self.showGraphPushButton)
+            # successfully disconnected device
+            self.refreshButton.setEnabled(True)
+            self.powerUnitsComboBox.setEnabled(False)
+            self.showGraphPushButton.setEnabled(False)
+            self.measureOncePushButton.setEnabled(False)
+            self.measureContinuousPushButton.setEnabled(False)
 
     def disconnect_button_clicked(self):
         self.disconnect_worker = Worker(self.pm.disconnect_device)
@@ -361,6 +362,21 @@ class Ui_MainWindow(object):
             # hide plot and wipe out its data
             self.plotwindow.hide()
             self.plotwindow = None
+
+    def measure_once_button_clicked(self):
+        power, power_units = self.pm.power
+        self.on_power_measurement(power, power_units)
+
+    def measure_button_clicked(self):
+        if self.pm.measuring == False:
+            # start measuring & disable measure once button
+            self.pm.measuring = True
+            self.measureOncePushButton.setEnabled(False)
+            self.measure_power()
+        elif self.pm.measuring == True:
+            # stop measuring & enable measure once button
+            self.pm.measuring = False
+            self.measureOncePushButton.setEnabled(True)
 
 
 if __name__ == "__main__":
