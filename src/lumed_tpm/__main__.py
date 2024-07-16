@@ -1,5 +1,5 @@
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QMainWindow, QPushButton, QLabel, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QMainWindow, QPushButton
 from PyQt5.QtCore import (
     QRunnable,
     QObject,
@@ -53,7 +53,7 @@ class MeasurePowerWorker(QRunnable):
             while self.pm.measuring:
                 power, power_units = self.pm.power
                 self.signals.progress.emit(power, power_units)
-                QThread.msleep(500)  # Refresh rate
+                QThread.msleep(50)  # Refresh rate
         except Exception as e:
             self.signals.error.emit(str(e))
         else:
@@ -80,6 +80,19 @@ class Worker(QRunnable):
         else:
             self.signals.finished.emit()
             self.signals.result.emit(result)
+
+
+class MainWindowController(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)
+
+    def closeEvent(self, event):
+        try:
+            self.ui.pm.disconnect_device()
+        except Exception as e:
+            print(e)
 
 
 class Ui_MainWindow(object):
@@ -277,6 +290,7 @@ class Ui_MainWindow(object):
             self.showGraphPushButton.setEnabled(False)
             self.measureOncePushButton.setEnabled(False)
             self.measureContinuousPushButton.setEnabled(False)
+            self.powerTextEdit.setPlainText("")
 
     def disconnect_button_clicked(self):
         self.disconnect_worker = Worker(self.pm.disconnect_device)
@@ -332,6 +346,9 @@ class Ui_MainWindow(object):
         self.powerTextEdit.setPlainText(f"{power} {units}")
         if self.plotwindow is not None and self.plotwindow.isVisible():
             self.plotwindow.plotdata.append(power)
+            if len(self.plotwindow.plotdata) > 1000:  # clear up memory
+                del self.plotwindow.plotdata[0]  # delete first data point
+            self.plotwindow.plotwidget.clear()
             self.plotwindow.plotwidget.plot(self.plotwindow.plotdata)
 
     def change_power_units(self):
@@ -343,6 +360,7 @@ class Ui_MainWindow(object):
                 "left", f"Power {self.pm.power_units}"
             )
             self.plotwindow.plotwidget.getPlotItem().setLabel("bottom", "X Axis")
+            self.plotwindow.plotdata = []
             self.plotwindow.show()
 
     def update_devices_combobox(self, result: dict):
@@ -383,8 +401,6 @@ if __name__ == "__main__":
     import sys
 
     app = QtWidgets.QApplication(sys.argv)
-    MainWindow = QtWidgets.QMainWindow()
-    ui = Ui_MainWindow()
-    ui.setupUi(MainWindow)
-    MainWindow.show()
+    mainWin = MainWindowController()
+    mainWin.show()
     sys.exit(app.exec_())
