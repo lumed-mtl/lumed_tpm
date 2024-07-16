@@ -48,20 +48,23 @@ class Powermeter:
             bool: True if device successfully connected, False otherwise. str: idn if connected, error message otherwise.
         """
         self.list_devices()
-        if selected_idn in self.connected_devices:
-            try:
-                selected_addr = self.connected_devices[selected_idn]
-                self.instr = self.rm.open_resource(selected_addr)
-                self.idn = selected_idn
-                self.connected = True
-                self.measuring = False
-                return True, self.idn
-            except visa.VisaIOError:
-                return False, "Error connecting device."
+        if self.connected == False:
+            if selected_idn in self.connected_devices:
+                try:
+                    selected_addr = self.connected_devices[selected_idn]
+                    self.instr = self.rm.open_resource(selected_addr)
+                    self.idn = selected_idn
+                    self.connected = True
+                    self.measuring = False
+                    return True, self.idn
+                except visa.VisaIOError:
+                    return False, "Error connecting device."
+            else:
+                raise ValueError(
+                    "The selected device is not a valid device. Verify the device is properly connected."
+                )
         else:
-            raise ValueError(
-                "The selected device is not a valid device. Verify the device is properly connected."
-            )
+            raise ValueError("A device is already connected.")
 
     def disconnect_device(self):
         """
