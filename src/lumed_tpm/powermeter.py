@@ -7,16 +7,11 @@ class Powermeter:
         self.rm = visa.ResourceManager('@py')
         self.connected = False
         self.idn = None  # identity, i.e. device model
+        self.measuring = None
         self._wavelength = None
-        self._auto_power_range = None
-        self._power_range = None
         self._power = None
         self._power_units = None
-        self._min_power_range = None
-        self._max_power_range = None
-        self.min_wavelength = None
-        self.max_wavelength = None
-        self.measuring = None
+        self._averaging_rate = None
 
     def list_devices(self):
         """
@@ -28,7 +23,7 @@ class Powermeter:
             Dictionary of all found devices. Format: {idn1:address1, idn2:address2, ...}
         """
         self.connected_devices = {}
-        self.rm = visa.ResourceManager()
+        self.rm = visa.ResourceManager('@py')
         for addr in self.rm.list_resources():
             try:
                 with self.rm.open_resource(addr) as instr:
@@ -56,6 +51,8 @@ class Powermeter:
                     self.idn = selected_idn
                     self.connected = True
                     self.measuring = False
+                    self._wavelength = self.instr.query("SENS:CORR:WAV?")
+                    self._averaging_rate = 1
                     return True, self.idn
                 except visa.VisaIOError:
                     return False, "Error connecting device."
@@ -113,4 +110,34 @@ class Powermeter:
             return self._power_units
         else:
             self._power, self._power_units = None, None
+            raise RuntimeError("No device connected.")
+    
+    @property
+    def wavelength(self):
+        if self.connected:
+            return self._wavelength
+        else:
+            raise RuntimeError("No device connected.")
+    
+    @property
+    def averaging_rate(self):
+        if self.connected:
+            return self._averaging_rate
+        else:
+            raise RuntimeError("No device connected.")
+        
+    @averaging_rate.setter
+    def averaging_rate(self, N):
+        if self.connected:
+            try:
+                rate = int(N)
+                if rate <= 0:
+                    self._averaging_rate = 1
+                else:
+                    self._averaging_rate = rate
+            except:
+                self._averaging_rate = 1
+            self.instr.write(f"AVER:COUNT {self._averaging_rate}")
+            return self._averaging_rate
+        else:
             raise RuntimeError("No device connected.")
