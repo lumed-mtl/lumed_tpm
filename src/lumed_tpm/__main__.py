@@ -238,6 +238,9 @@ class Ui_MainWindow(object):
         self.measureOncePushButton.clicked.connect(self.measure_once_button_clicked)
         self.measureContinuousPushButton.clicked.connect(self.measure_button_clicked)
         self.avgPowerCheckBox.stateChanged.connect(self.avgpower_checkbox_clicked)
+        self.avgPowerRateLineEdit.textChanged.connect(
+            self.avgpowerrate_lineedit_changed
+        )
 
         # Initialize threadpool for running workers asynchronously
         self.threadpool = QThreadPool()
@@ -334,6 +337,10 @@ class Ui_MainWindow(object):
         elif state == Qt.Unchecked:
             self.pm.averaging_rate = 1
 
+    def change_averaging_rate(self, rate):
+        if self.avgPowerCheckBox.checkState() == Qt.Checked:
+            self.pm.averaging_rate = rate
+
     ### EVENT SLOTS ###
 
     def connect_button_clicked(self):
@@ -420,6 +427,13 @@ class Ui_MainWindow(object):
     def avgpower_checkbox_clicked(self):
         self.connect_worker = Worker(
             self.on_avgpowercheckbox_changed, self.avgPowerCheckBox.checkState()
+        )
+        self.connect_worker.signals.error.connect(lambda e: print(e))
+        self.threadpool.start(self.connect_worker)
+
+    def avgpowerrate_lineedit_changed(self):
+        self.connect_worker = Worker(
+            self.change_averaging_rate, self.avgPowerRateLineEdit.text()
         )
         self.connect_worker.signals.error.connect(lambda e: print(e))
         self.threadpool.start(self.connect_worker)
