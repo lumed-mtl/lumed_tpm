@@ -416,7 +416,7 @@ class Ui_MainWindow(object):
 
         self.connect_worker = Worker(read_power_once)
         self.connect_worker.signals.result.connect(
-            lambda result: self.on_power_measurement(result[0], result[1])
+            lambda result: self.powerTextEdit.setPlainText(f"{result[0]} {result[1]}")
         )  # result: ('power value', 'power units')
         self.connect_worker.signals.error.connect(
             lambda e: print(e)
