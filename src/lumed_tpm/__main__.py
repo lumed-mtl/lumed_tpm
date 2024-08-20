@@ -62,7 +62,7 @@ class MeasurePowerWorker(QRunnable):
                 power = float("{:.2e}".format(power))
                 self.signals.progress.emit(power, power_units)
 
-                QThread.msleep(50)  # Refresh rate
+                QThread.msleep(50)  # Refresh rate (ms)
         except Exception as e:
             self.signals.error.emit(str(e))
         else:
@@ -117,7 +117,7 @@ class Ui_MainWindow(object):
 
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(490, 150)
+        MainWindow.resize(740, 150)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.gridLayout_2 = QtWidgets.QGridLayout(self.centralwidget)
@@ -302,7 +302,7 @@ class Ui_MainWindow(object):
         )
         self.measure_power_worker.signals.error.connect(
             lambda e: (print(e), self.powerTextEdit.setPlainText(""))[-1]
-        )  # print error message and clear power text edit
+        )  # print error message and clear power textEdit
         self.threadpool.start(self.measure_power_worker)
 
     def on_power_measurement(self, power, units):
@@ -409,9 +409,19 @@ class Ui_MainWindow(object):
             self.plotwindow = None
 
     def measure_once_button_clicked(self):
-        power, power_units = self.pm.power
-        power = "{:.2e}".format(power)
-        self.powerTextEdit.setPlainText(f"{power} {power_units}")
+        def read_power_once():
+            power, power_units = self.pm.power
+            power = str(float("{:.2e}".format(power)))
+            return power, power_units
+
+        self.connect_worker = Worker(read_power_once)
+        self.connect_worker.signals.result.connect(
+            lambda result: self.on_power_measurement(result[0], result[1])
+        )  # result: ('power value', 'power units')
+        self.connect_worker.signals.error.connect(
+            lambda e: print(e)
+        )  # print error message
+        self.threadpool.start(self.connect_worker)
 
     def measure_button_clicked(self):
         if self.pm.measuring == False:
