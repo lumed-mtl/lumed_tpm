@@ -181,7 +181,12 @@ class Powermeter:
 
 if __name__ == "__main__":
     pm_ = Powermeter()
-    pm_.auto_connect()
+
+    devices_ = pm_.find_thorlabs_pm()
+    device = list(devices_)[0]
+    print(device)
+    pm_.connect(device)
+
     print("connected:", pm_.isconnected)
     print("model:", pm_._model, "serial:", pm_._serial_number)
 
