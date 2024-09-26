@@ -65,6 +65,8 @@ class TLabPowermeterWidget(QWidget, Ui_widgetTLabPowermeter):
     def setup_default_ui(self):
         self.pushButtonRefresh.setIcon(fugue.icon("magnifier-left"))
 
+        self.spinBoxCounts.setMinimum(1)
+
     def connect_ui_signals(self):
 
         # Device

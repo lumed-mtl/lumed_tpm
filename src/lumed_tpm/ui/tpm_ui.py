@@ -15,6 +15,11 @@ class Ui_widgetTLabPowermeter(object):
     def setupUi(self, widgetTLabPowermeter):
         widgetTLabPowermeter.setObjectName("widgetTLabPowermeter")
         widgetTLabPowermeter.resize(427, 432)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(widgetTLabPowermeter.sizePolicy().hasHeightForWidth())
+        widgetTLabPowermeter.setSizePolicy(sizePolicy)
         self.gridLayout = QtWidgets.QGridLayout(widgetTLabPowermeter)
         self.gridLayout.setObjectName("gridLayout")
         self.groupBoxSettings = QtWidgets.QGroupBox(widgetTLabPowermeter)
