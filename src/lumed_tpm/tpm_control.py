@@ -37,6 +37,7 @@ class Powermeter:
 
     def find_thorlabs_pm(self) -> dict:
         ressources = self._ressource_manager.list_resources("?*USB?*")
+        ressources = [r for r in ressources if "INSTR" in r]
         available_powermeters = {}
         for ressource in ressources:
             try:
