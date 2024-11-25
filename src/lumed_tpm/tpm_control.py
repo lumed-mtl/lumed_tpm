@@ -1,6 +1,7 @@
 import logging
 from threading import Lock
 
+import numpy as np
 import pyvisa
 
 logger = logging.getLogger()
@@ -31,7 +32,7 @@ class Powermeter:
     def _safe_scpi_write(self, message: str) -> None:
         with self._mutex:
             try:
-                answer = self._instrument.write(message)
+                _ = self._instrument.write(message)
             except Exception as e:
                 logger.error(e)
 
@@ -88,6 +89,9 @@ class Powermeter:
             _, model, serial_number, firmware = answer.split(",")
         except Exception as e:
             logger.error(e)
+            model = ""
+            serial_number = ""
+            firmware = ""
 
         return model, serial_number, firmware
 
@@ -97,6 +101,7 @@ class Powermeter:
             count = int(answer)
         except Exception as e:
             logger.error(e)
+            count = np.nan
 
         return count
 
@@ -106,6 +111,7 @@ class Powermeter:
             wavelength = int(float(answer))
         except Exception as e:
             logger.error(e)
+            wavelength = np.nan
 
         return wavelength
 
@@ -115,15 +121,17 @@ class Powermeter:
             isauto = bool(int(answer))
         except Exception as e:
             logger.error(e)
+            isauto = False
 
         return isauto
 
-    def get_range(self) -> bool:
+    def get_range(self) -> float:
         try:
             answer = self._safe_scpi_query("power:dc:range?")
             current_range = float(answer)
         except Exception as e:
             logger.error(e)
+            current_range = np.nan
 
         return current_range
 
@@ -132,6 +140,7 @@ class Powermeter:
             unit = self._safe_scpi_query("power:dc:unit?")
         except Exception as e:
             logger.error(e)
+            unit = ""
 
         return unit
 
@@ -141,6 +150,7 @@ class Powermeter:
             power = float(answer)
         except Exception as e:
             logger.error(e)
+            power = np.nan
 
         return power
 
