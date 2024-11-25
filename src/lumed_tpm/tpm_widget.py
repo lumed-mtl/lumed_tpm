@@ -100,9 +100,13 @@ class TLabPowermeterWidget(QWidget, Ui_widgetTLabPowermeter):
         self.groupBoxDetail.setEnabled(isconnected)
 
         if isconnected:
-            self.update_settings()
-            self.update_detail()
-            self.update_measurements()
+            try:
+                self.update_settings()
+                self.update_detail()
+                self.update_measurements()
+            except Exception as e:
+                logger.error(e)
+                self.disconnect_powermeter()
 
     def update_settings(self):
 
@@ -164,6 +168,7 @@ class TLabPowermeterWidget(QWidget, Ui_widgetTLabPowermeter):
             logger.error("powermeter not connected")
             return
 
+        logger.info("Disconnecting powermeter")
         self.powermeter.disconnect()
         self.update_timer.stop()
         self.update_ui()
