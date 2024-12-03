@@ -193,7 +193,7 @@ class TLabPowermeterWidget(QWidget, Ui_widgetTLabPowermeter):
         self.powermeter.set_correction_wavelength(785)
         self.powermeter.set_power_unit("W")
         self.powermeter.set_auto_range(False)
-        self.powermeter.set_range(50e-3)
+        self.powermeter.set_range(200e-3)
         self.powermeter.set_average_count(1)
 
     # Settings
