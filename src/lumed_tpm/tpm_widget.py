@@ -79,6 +79,7 @@ class TLabPowermeterWidget(QWidget, Ui_widgetTLabPowermeter):
         self.pushButtonAutoRange.clicked.connect(self.auto_range_toggled)
         self.doubleSpinBoxRange.valueChanged.connect(self.power_range_changed)
         self.spinBoxCounts.valueChanged.connect(self.average_count_changed)
+        self.spinBoxWavelength.valueChanged.connect(self.set_correction_wavelength)
 
         # Measurements
         self.pushButtonSingleMeasurement.clicked.connect(self.take_single_power)
@@ -133,6 +134,15 @@ class TLabPowermeterWidget(QWidget, Ui_widgetTLabPowermeter):
         if not self.spinBoxCounts.hasFocus():
             self.spinBoxCounts.setValue(self.powermeter.get_average_count())
 
+        if not self.spinBoxWavelength.hasFocus():
+            self.spinBoxWavelength.setMinimum(
+                self.powermeter.get_correction_wavelength_min()
+            )
+            self.spinBoxWavelength.setMaximum(
+                self.powermeter.get_correction_wavelength_max()
+            )
+            self.spinBoxWavelength.setValue(self.powermeter.get_correction_wavelength())
+
     def update_detail(self):
         self.lineEditModel.setText(self.powermeter._model)
         self.lineEditSerialNumber.setText(self.powermeter._serial_number)
@@ -159,6 +169,7 @@ class TLabPowermeterWidget(QWidget, Ui_widgetTLabPowermeter):
             self.apply_default()
             self.update_ui()
             self.update_timer.start()
+            self.apply_default()
 
         except Exception as e:
             logger.error(e)
@@ -219,6 +230,15 @@ class TLabPowermeterWidget(QWidget, Ui_widgetTLabPowermeter):
         try:
             self.powermeter.set_average_count(average_count)
             logger.info("average count number set to %s", average_count)
+        except Exception as e:
+            logger.error(e)
+
+    def set_correction_wavelength(self):
+        wavelength = self.spinBoxWavelength.value()
+
+        try:
+            self.powermeter.set_correction_wavelength(wavelength)
+            logger.info("correction wavelength set to %s nm", wavelength)
         except Exception as e:
             logger.error(e)
 

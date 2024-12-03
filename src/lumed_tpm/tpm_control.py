@@ -115,6 +115,26 @@ class Powermeter:
 
         return wavelength
 
+    def get_correction_wavelength_min(self) -> int:
+        try:
+            answer = self._safe_scpi_query("sense:correction:wavelength? minimum")
+            wavelength = int(float(answer))
+        except Exception as e:
+            logger.error(e)
+            wavelength = np.nan
+
+        return wavelength
+
+    def get_correction_wavelength_max(self) -> int:
+        try:
+            answer = self._safe_scpi_query("sense:correction:wavelength? maximum")
+            wavelength = int(float(answer))
+        except Exception as e:
+            logger.error(e)
+            wavelength = np.nan
+
+        return wavelength
+
     def get_auto_range(self) -> bool:
         try:
             answer = self._safe_scpi_query("power:dc:range:auto?")
@@ -204,16 +224,20 @@ if __name__ == "__main__":
     pm_.set_correction_wavelength(785)
     print("correction wavelength:", pm_.get_correction_wavelength())
 
-    pm_.set_auto_range(False)
+    pm_.set_auto_range(True)
     print("auto range:", pm_.get_auto_range())
 
     pm_.set_range(50e-3)
     print("current range:", pm_.get_range())
+    print("auto range:", pm_.get_auto_range())
 
     pm_.set_power_unit("W")
     print("current power unit:", pm_.get_power_unit())
 
     print("Power : ", pm_.get_power(), pm_.get_power_unit())
+
+    print("Min cor wl : ", pm_.get_correction_wavelength_min())
+    print("Max cor wl : ", pm_.get_correction_wavelength_max())
 
     pm_.disconnect()
     print("connected:", pm_.isconnected)
